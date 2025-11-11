@@ -7,11 +7,28 @@
 
 import Testing
 @testable import CoreMLAssn
+import UIKit
 
 struct CoreMLAssnTests {
 
     @Test func example() async throws {
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+    }
+    
+    func load_image(named:String) async throws {
+        let ROOT = "TestImages"
+    }
+    
+    @Test func image_check() async throws {
+        
+        
+        
+        let images:[(String, UIImage)] = [
+            ("shark", UIImage(named:"TestImages/shark")!)
+        ]
+        
+        
+        
     }
 
 }
