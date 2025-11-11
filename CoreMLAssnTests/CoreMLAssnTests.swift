@@ -24,11 +24,18 @@ struct CoreMLAssnTests {
         
         
         let images:[(String, UIImage)] = [
-            ("shark", UIImage(named:"TestImages/shark")!)
+            ("shark", UIImage(named:"TestImages/shark.jpg")!)
         ]
         
         
         
     }
+    
+    @Test func sound_check() async throws {
+        let sounds:[(String, String)] = [
+            ("I kinda popped off, and went gamer mode on these literal children.", "clip.wav")
+        ]
+    }
+    
 
 }

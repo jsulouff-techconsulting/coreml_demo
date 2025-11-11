@@ -37,12 +37,16 @@ final class AudioTransVM: ObservableObject {
     
     @Published var state:State = .unReady
     
+    /*
+     At this time, transcription quality is VERY POOR
+     console logging shows much of the problem comes from "LoudnessManager.mm"
+     
+     */
     func startTranscribingFile(file:URL) async {
         self.state = .running
         SFSpeechRecognizer.requestAuthorization {
             speechAuthStatus in
             if speechAuthStatus == .authorized {
-                var transcript = ""
                 debugPrint("User gave permission to perform speech recognition")
                 
                 guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "id_ID")) else {
