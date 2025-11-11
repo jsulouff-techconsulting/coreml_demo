@@ -11,55 +11,50 @@ import SwiftUI
 let inferenceRes = (224, 224)
 
 final class ImageClassViewModel: ObservableObject {
-    @Published var identity:String?
-    @Published var modelFailReason:String?
-    @Published var selectedImage:UIImage?
     
-    var MLModel:MobileNetV2?
-    
-    init() {
-        do {
-            self.MLModel = try MobileNetV2(configuration: .init())
-        }
-        catch (let err) {
-            self.modelFailReason = err.localizedDescription
-        }
+    enum State {
+        case unready, ready, processing, success(Success), failed(Failure)
     }
     
-    func clear() {
-        self.identity = nil
-        self.modelFailReason = nil
-        self.selectedImage = nil
+    @Published var state:State = .unready
+    
+    func ready() {
+        self.state = .ready
+    }
+    
+    struct Success {
+        var identifiedAs:String
+    }
+    
+    func finish(_ id: String) {
+        self.state = .success(Success(identifiedAs: id))
+    }
+    
+    struct Failure {
+        var reason:String
+    }
+    
+    func fail(reason:String) {
+        debugPrint("The model failed: \(reason)")
+        self.state = .failed(Failure(reason: reason))
     }
     
     func tryInference(image:UIImage) async {
-        guard MLModel != nil else {
-            debugPrint("The model is nil.")
-            return
-        }
-        
+        self.state = .processing
         do {
+            let model = try MobileNetV2(configuration: .init())
             if let buffer = convertImage(image: image) {
-                if let output = try MLModel?.prediction(image: buffer) {
-                    await MainActor.run {
-                        debugPrint("Inference completed. Response: \(output.classLabel)")
-                        self.identity = output.classLabel
-                    }
-                }
-                else {
-                    debugPrint("The model did not return any data.")
-                }
+                let output = try model.prediction(image: buffer)
+                debugPrint("Image inference complete: \(output)")
+                self.finish(output.classLabel)
             }
             else {
-                debugPrint("Image failed to convert")
-                modelFailReason = "Image failed to convert"
+                self.fail(reason: "Could not convert the image to a CVBuffer")
+                return
             }
         }
         catch (let err) {
-            self.modelFailReason = err.localizedDescription
+            self.fail(reason: "\(err)")
         }
     }
-    
-    
-    
 }

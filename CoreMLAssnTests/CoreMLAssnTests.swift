@@ -24,7 +24,7 @@ struct CoreMLAssnTests {
         
         
         let images:[(String, UIImage)] = [
-            ("shark", UIImage(named:"TestImages/shark.jpg")!)
+            ("shark", UIImage(named:"TestImages/shark.jpg")!) // Its a carribean reef shark, specifically
         ]
         
         

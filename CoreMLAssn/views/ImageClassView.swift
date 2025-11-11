@@ -13,66 +13,90 @@ import PhotosUI
 struct ImageClassView: View {
     @StateObject var model = ImageClassViewModel()
     @State var selectionImage: PhotosPickerItem?
+    
+    struct ResetButton: View {
+        var model:ImageClassViewModel
+        var body: some View {
+            Button("Restart") {
+                model.ready()
+            }
+        }
+    }
+    
+    struct Ready: View {
+        var parent:ImageClassView
+        var body: some View {
+            PhotosPicker( "Select an image to classify", selection: self.parent.$selectionImage, matching:.images)
+        }
+    }
+    
+    struct Fail: View {
+        var reason: ImageClassViewModel.Failure
+        var model: ImageClassViewModel
+        var body: some View {
+            Text("The classification failed: \(reason.reason)")
+            ResetButton(model: model)
+        }
+    }
+    
+    struct Processing: View {
+        var body: some View {
+            Text("Making inference...")
+        }
+    }
+    
+    struct Success: View {
+        var model:ImageClassViewModel
+        var result:ImageClassViewModel.Success
+        var body: some View {
+            Text("Result:")
+            Text("\(result.identifiedAs)")
+            ResetButton(model: model)
+        }
+    }
+    
     var body: some View {
         VStack {
-            Button("Reset") {
-                self.model.clear()
+            switch model.state {
+            case .unready:
+            Text("THE VIEW IS NOT READY")
+            case .ready:
+                Ready(parent: self)
+            case .processing:
+            Processing()
+            case .success(let success):
+                Success(model: self.model, result: success)
+            case .failed(let failure):
+                Fail(reason: failure, model: self.model)
             }
-            if let ident = model.identity {
-                if let img = model.selectedImage {
-                    InferenceSuccessResultView(image: img, inference: ident)
-                }
-                else {
-                    Text("Inference: \(ident)")
-                }
-            }
-            else if let errReason = model.modelFailReason {
-                InferenceFailResultView(reason: errReason)
-            }
-            else {
-                if let selectedImage = model.selectedImage {
-                    Image(uiImage: selectedImage)
-                    Button("Clear Image") {
-                        self.model.selectedImage = nil
-                    }
-                    Button("Make Inference") {
-                        Task {
-                            await self.model.tryInference(image: selectedImage)
+        }
+        .onAppear() {
+            model.ready()
+        }
+        .onChange(of: selectionImage) {
+            debugPrint("Triggerd onchange")
+            self.model.state = .processing
+            Task {
+                if let selectionImage = selectionImage {
+                    do {
+                        let ldImage = try await selectionImage.loadTransferable(type: Image.self)
+                        guard let ldImage = ldImage else {
+                            self.model.fail(reason: "Could not load selected image")
+                            return
+                        }
+                        if let uiimage = ImageRenderer(content: ldImage.resizable().frame(width: 224, height: 224)).uiImage {
+                            await self.model.tryInference(image: uiimage)
+                        }
+                        else {
+                            debugPrint("Failed to change image to ui image")
                         }
                     }
-                }
-                else {
-                    PhotosPicker(selection:self.$selectionImage) {
-                        Text("Select an Image")
+                    catch (let err) {
+                        self.model.fail(reason: "failed to select an image: \(err)")
                     }
-                }
-                
-            }
-        }
-        
-        .onChange(of: selectionImage) {
-            guard selectionImage != nil else {
-                return
-            }
-            Task {
-                debugPrint("Image selected, starting task")
-                if let ldImage = try? await selectionImage?.loadTransferable(type: Image.self) {
-                    //https://old.reddit.com/r/swift/comments/1e2jm36/how_do_i_convert_a_swiftui_image_to_data/
-                    //this probably isn't how this is supposed to be done
-                    if let uiimage = ImageRenderer(content: ldImage.resizable().frame(width: 224, height: 224)).uiImage {
-                        await self.model.tryInference(image: uiimage)
-                        await self.model.tryInference(image: uiimage)
-                    }
-                    else {
-                        debugPrint("Failed to change image to ui image")
-                    }
-                }
-                else {
-                    debugPrint("Photo picker failed.")
                 }
             }
         }
-        
     }
 }
 
